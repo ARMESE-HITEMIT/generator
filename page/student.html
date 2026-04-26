@@ -7,89 +7,161 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
+        @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
         :root {
-            --primary: #4F46E5;
-            --primary-hover: #4338CA;
-            --surface: #111827; 
-            --border: #374151;
-            --text: #F9FAFB;
+            --primary: #ff7a3d;
+            --primary-hover: #ff9858;
+            --primary-soft: rgba(255, 122, 61, 0.2);
+            --surface: rgba(11, 22, 40, 0.9);
+            --surface-2: rgba(17, 32, 56, 0.85);
+            --border: rgba(150, 183, 226, 0.3);
+            --text: #f7faff;
+            --text-muted: #9fb1cf;
+            --shadow: 0 24px 55px rgba(0, 0, 0, 0.45);
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Courier New', Courier, monospace; 
-            background-color: #000000;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
-            background-size: 30px 30px;
+            font-family: "Space Grotesk", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             color: var(--text);
             display: flex;
             height: 100vh;
             overflow: hidden;
+            position: relative;
+            background:
+                radial-gradient(circle at 12% 15%, rgba(255, 122, 61, 0.2), transparent 28%),
+                radial-gradient(circle at 88% 10%, rgba(28, 157, 255, 0.22), transparent 32%),
+                linear-gradient(145deg, #030611 0%, #0b1323 46%, #070d1b 100%);
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+            background-size: 34px 34px;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 75%);
         }
 
         .left-pane {
-            width: 320px;
-            background-color: var(--surface);
+            width: 360px;
+            background: linear-gradient(170deg, rgba(14, 29, 51, 0.98), rgba(9, 19, 34, 0.95));
             border-right: 1px solid var(--border);
+            box-shadow: 10px 0 35px rgba(0, 0, 0, 0.35);
             display: flex;
             flex-direction: column;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.5);
             z-index: 10;
             flex-shrink: 0;
+            backdrop-filter: blur(8px);
         }
 
         .pane-header {
-            padding: 24px;
+            padding: 22px 24px;
             border-bottom: 1px solid var(--border);
-            font-weight: bold;
-            font-size: 1.25rem;
+            font-size: 1.15rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #f2f6ff;
+            background: linear-gradient(90deg, rgba(255, 122, 61, 0.14), rgba(28, 157, 255, 0.08));
         }
 
         .pane-content {
-            padding: 24px;
+            padding: 18px;
             flex: 1;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        .input-group {
-            margin-bottom: 20px;
+        .pane-content > div {
+            background: linear-gradient(160deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+            border: 1px solid rgba(150, 183, 226, 0.25);
+            border-radius: 13px;
+            padding: 11px 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: border-color 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
         }
 
-        .input-group label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #9CA3AF;
+        .pane-content > div:hover {
+            border-color: rgba(255, 122, 61, 0.5);
+            transform: translateY(-1px);
+            background: linear-gradient(160deg, rgba(255, 122, 61, 0.08), rgba(255, 255, 255, 0.02));
         }
 
-        .input-group input {
+        .pane-content > div > div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .pane-content input[type="text"],
+        .pane-content input[type="number"],
+        .pane-content input[type="date"] {
             width: 100%;
-            padding: 12px;
             border: 1px solid var(--border);
-            background-color: #1F2937;
-            color: #F9FAFB;
-            border-radius: 0; 
-            font-size: 0.875rem;
-            box-sizing: border-box;
+            background: rgba(4, 11, 23, 0.9);
+            color: var(--text);
+            border-radius: 10px;
+            padding: 10px 11px;
             outline: none;
-            transition: all 0.2s;
-            font-family: inherit;
+            font-family: "IBM Plex Mono", Consolas, "Courier New", monospace;
+            font-size: 0.84rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
         }
 
-        .input-group input:focus {
+        .pane-content input[type="text"]:focus,
+        .pane-content input[type="number"]:focus,
+        .pane-content input[type="date"]:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+            background: rgba(7, 16, 31, 0.96);
+        }
+
+        .pane-content input[type="color"] {
+            width: 100%;
+            height: 42px;
+            border: 1px solid var(--border);
+            background: rgba(4, 11, 23, 0.92);
+            border-radius: 10px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .pane-content input[type="checkbox"],
+        .radio-label input[type="radio"] {
+            accent-color: var(--primary);
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
         }
 
         .main-content {
             flex: 1;
             position: relative;
             overflow: auto;
-            padding: 100px 40px 60px 40px; 
+            padding: 98px 34px 54px 34px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -97,71 +169,87 @@
 
         .download-pane {
             position: fixed;
-            top: 24px;
-            right: 24px;
-            background: var(--surface);
-            padding: 20px;
-            border-radius: 0; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            top: 20px;
+            right: 20px;
+            min-width: 340px;
+            background: linear-gradient(160deg, rgba(12, 23, 40, 0.96), rgba(16, 30, 50, 0.86));
+            padding: 16px;
+            border-radius: 16px;
             border: 1px solid var(--border);
+            box-shadow: var(--shadow);
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
             z-index: 50;
+            backdrop-filter: blur(8px);
         }
 
         .export-options {
             display: flex;
-            gap: 16px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border);
+            gap: 10px;
+            flex-wrap: wrap;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(150, 183, 226, 0.24);
         }
 
         .radio-label {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
-            font-size: 0.875rem;
-            font-weight: bold;
+            font-size: 0.81rem;
+            font-weight: 600;
             cursor: pointer;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(150, 183, 226, 0.2);
+            border-radius: 999px;
+            padding: 6px 12px;
+            transition: border-color 0.2s ease, color 0.2s ease;
         }
 
-        .radio-label input[type="radio"] {
-            accent-color: var(--primary);
-            width: 16px;
-            height: 16px;
+        .radio-label:hover {
+            border-color: rgba(255, 122, 61, 0.5);
+            color: var(--text);
         }
 
         .btn-group {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
         }
 
         button {
-            background: var(--primary);
-            color: white;
+            background: linear-gradient(125deg, var(--primary), #ff9b46);
+            color: #fff;
             border: none;
-            padding: 10px 18px;
-            border-radius: 0; 
-            font-size: 0.875rem;
-            font-weight: bold;
+            padding: 11px 14px;
+            border-radius: 11px;
+            font-size: 0.83rem;
+            letter-spacing: 0.03em;
+            font-weight: 700;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
             font-family: inherit;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 10px 18px rgba(255, 122, 61, 0.24);
         }
 
         button:hover {
-            background: var(--primary-hover);
+            transform: translateY(-2px);
+            filter: brightness(1.07);
+            box-shadow: 0 14px 24px rgba(255, 122, 61, 0.32);
+        }
+
+        button:active {
+            transform: translateY(0);
         }
 
         .cards-container {
             display: flex;
             flex-direction: column;
-            gap: 60px;
+            gap: 56px;
             align-items: center;
         }
 
@@ -169,34 +257,35 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 20px;
+            gap: 18px;
         }
 
         .card-label {
-            font-weight: bold;
-            color: #D1D5DB; 
-            letter-spacing: 1px;
+            font-weight: 700;
+            color: #e7eeff;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
-            font-size: 1rem;
-            background: rgba(31, 41, 55, 0.8);
-            padding: 5px 15px;
-            border: 1px solid #374151;
+            font-size: 0.82rem;
+            background: linear-gradient(90deg, rgba(255, 122, 61, 0.2), rgba(28, 157, 255, 0.18));
+            padding: 8px 16px;
+            border: 1px solid rgba(150, 183, 226, 0.4);
+            border-radius: 999px;
         }
 
         .card-wrapper {
             background-color: transparent;
-            border: none; 
-            border-radius: 0; 
+            border: none;
+            border-radius: 0;
             padding: 0;
             display: inline-flex;
             justify-content: center;
             align-items: center;
 
-            /* HỆ QUY CHIẾU ISO ID-1 TẠI 300 DPI */
-            /* Kích thước thẻ: 85.6mm x 53.98mm (tương đương 1011px x 638px) */
+            /* HE QUY CHIEU ISO ID-1 TAI 300 DPI */
+            /* Kich thuoc the: 85.6mm x 53.98mm (tuong duong 1011px x 638px) */
             /* SUY RA: 1mm = 11.811px */
-            /* CÁCH DÙNG: Không dùng đơn vị 'mm' thường của css (vì nó mặc định 96dpi sẽ bị nhỏ xíu). */
-            /* Mày phải dùng calc(số_mm * var(--mm)). Ví dụ width 85mm -> width: calc(85.85 * var(--mm)) */
+            /* CACH DUNG: Khong dung don vi 'mm' thuong cua css (vi no mac dinh 96dpi se bi nho xiu). */
+            /* Dung calc(so_mm * var(--mm)). Vi du width 85mm -> width: calc(85.85 * var(--mm)) */
             --mm: 11.811px;
             --cm: 118.11px;
         }
@@ -207,15 +296,12 @@
             position: relative;
             box-sizing: border-box;
             overflow: hidden;
-            
-            border: none; 
-            border-radius: 0; 
+            border: none;
+            border-radius: 0;
             display: block;
-
-            box-shadow: 0 0 40px rgba(30, 58, 138, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 1);
+            box-shadow: 0 0 40px rgba(30, 58, 138, 0.45), 0 25px 50px -12px rgba(0, 0, 0, 0.95);
         }
 
-        /* KHUNG CHỨA TOÀN BỘ ELEMENT ĐỂ ĐỊNH VỊ (0,0) TỪ GÓC TRÊN TRÁI */
         .card-canvas {
             width: 100%;
             height: 100%;
@@ -224,11 +310,97 @@
             left: 0;
         }
 
-        /* STYLE CHUẨN ĐỂ ĐẶT CÁC OBJECT ABSOLUTE (GIỐNG HỆT CANVA) */
         .absolute-object {
             position: absolute;
         }
 
+        .pane-content::-webkit-scrollbar,
+        .main-content::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .pane-content::-webkit-scrollbar-thumb,
+        .main-content::-webkit-scrollbar-thumb {
+            background: rgba(150, 183, 226, 0.35);
+            border-radius: 10px;
+        }
+
+        .pane-content::-webkit-scrollbar-track,
+        .main-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        @media (max-width: 1260px) {
+            body {
+                height: auto;
+                min-height: 100vh;
+                overflow: auto;
+                flex-direction: column;
+            }
+
+            .left-pane {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+            }
+
+            .pane-content {
+                max-height: 42vh;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 10px;
+                padding: 14px;
+            }
+
+            .main-content {
+                padding: 18px 14px 36px 14px;
+            }
+
+            .download-pane {
+                position: sticky;
+                right: auto;
+                top: 12px;
+                width: min(820px, calc(100vw - 28px));
+                min-width: 0;
+                margin: 0 auto 20px auto;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .pane-content {
+                grid-template-columns: 1fr;
+                max-height: none;
+            }
+
+            .export-options {
+                gap: 8px;
+            }
+
+            .radio-label {
+                font-size: 0.78rem;
+                padding: 5px 10px;
+            }
+
+            .main-content {
+                align-items: stretch;
+            }
+
+            .cards-container {
+                gap: 34px;
+            }
+
+            .card-wrapper {
+                max-width: 100%;
+                overflow-x: auto;
+                justify-content: flex-start;
+            }
+
+            .card-label {
+                font-size: 0.76rem;
+            }
+        }
     </style>
 </head>
 <body>
