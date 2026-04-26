@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ID Card Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --surface: #111827; 
+            --border: #374151;
+            --text: #F9FAFB;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace; 
+            background-color: #000000;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .left-pane {
+            width: 320px;
+            background-color: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.5);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .pane-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+
+        .pane-content {
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #9CA3AF;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            background-color: #1F2937;
+            color: #F9FAFB;
+            border-radius: 0; 
+            font-size: 0.875rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .input-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+        }
+
+        .main-content {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+            padding: 100px 40px 60px 40px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .download-pane {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 0; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 50;
+        }
+
+        .export-options {
+            display: flex;
+            gap: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .radio-label input[type="radio"] {
+            accent-color: var(--primary);
+            width: 16px;
+            height: 16px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 0; 
+            font-size: 0.875rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+        }
+
+        .cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .card-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .card-label {
+            font-weight: bold;
+            color: #D1D5DB; 
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-size: 1rem;
+            background: rgba(31, 41, 55, 0.8);
+            padding: 5px 15px;
+            border: 1px solid #374151;
+        }
+
+        .card-wrapper {
+            background-color: transparent;
+            border: none; 
+            border-radius: 0; 
+            padding: 0;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+
+            /* HỆ QUY CHIẾU ISO ID-1 TẠI 300 DPI */
+            /* Kích thước thẻ: 85.6mm x 53.98mm (tương đương 1011px x 638px) */
+            /* SUY RA: 1mm = 11.811px */
+            /* CÁCH DÙNG: Không dùng đơn vị 'mm' thường của css (vì nó mặc định 96dpi sẽ bị nhỏ xíu). */
+            /* Mày phải dùng calc(số_mm * var(--mm)). Ví dụ width 85mm -> width: calc(85.85 * var(--mm)) */
+            --mm: 11.811px;
+            --cm: 118.11px;
+        }
+
+        .card {
+            width: 1011px;
+            height: 638px;
+            position: relative;
+            box-sizing: border-box;
+            overflow: hidden;
+            
+            border: none; 
+            border-radius: 0; 
+            display: block;
+
+            box-shadow: 0 0 40px rgba(30, 58, 138, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 1);
+        }
+
+        /* KHUNG CHỨA TOÀN BỘ ELEMENT ĐỂ ĐỊNH VỊ (0,0) TỪ GÓC TRÊN TRÁI */
+        .card-canvas {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* STYLE CHUẨN ĐỂ ĐẶT CÁC OBJECT ABSOLUTE (GIỐNG HỆT CANVA) */
+        .absolute-object {
+            position: absolute;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- LEFTPANE -->
+    <div class="left-pane">
+        <div class="pane-header">Tùy chỉnh thẻ</div>
+        <div class="pane-content">
+            <div>
+                Màu Thẻ:
+                <input type="color" id="c_color_picker" onchange="update();" value="#f0f0f0">
+            </div>
+            <div>
+                Họ:
+                <input type="text" id="c_lastname" onchange="update();" value="HITEMIT">
+            </div>
+            <div>
+                Tên
+                <input type="text" id="c_name" onchange="update();" value="ARMESE RANDOM">
+            </div>
+            <div>
+                Ngày Sinh
+                <input type="date" id="c_birthdate" onchange="update();" value="2010-11-29">
+            </div>
+            <div>
+                cccd
+                <input type="number" id="c_nationalid" onchange="update();" value="0000000000000">
+            </div>
+            <div>
+                sdt
+                <input type="number" id="c_phone" onchange="update();" value="0000000000">
+            </div>
+            <div>
+                chức vụ
+                <input type="text" id="c_position" onchange="update();" value="HỌC SINH">
+            </div>
+            <div>
+                Lớp
+                <input type="text" id="c_class" onchange="update();" value="10A5">
+            </div>
+            <div>
+                Năm Học
+                <input type="text" id="c_schoolyear" onchange="update();" value="2025-2026">
+            </div>
+            <div>
+                hardid
+                <input type="number" id="c_hid" onchange="update();" value="18374629104567293">
+            </div>
+            <div>
+                softid
+                <input type="text" id="c_sid" onchange="update();" value="37635ACB783645A2">
+            </div>
+            <div>
+                gioi tinh
+                <div>
+                    nam / nu
+                    <input type="checkbox" id="c_sex" onchange="update();" checked>
+                </div>
+            </div>
+            <div>
+                role
+                <div>
+                    EN: 
+                    <input type="text" id="c_role_en" onchange="update();" value="STUDENT">
+                </div>
+            </div>
+            <div>
+                permision
+                <div>
+                    key 
+                    <input type="number" id="c_per_key" onchange="update();" value="1">
+                </div>
+                <div>
+                    range
+                    <input type="number" id="c_per_range" onchange="update();" value="2">
+                </div>
+                <div>
+                    gear
+                    <input type="number" id="c_per_gear" onchange="update();" value="0">
+                </div>
+            </div>
+            <div>
+                valid 
+                <div>
+                    from 
+                    <input type="date" id="c_validfrom" onchange="update();" value="2025-10-08">
+                </div>
+                <div>
+                    to
+                    <input type="date" id="c_validto" onchange="update();" value="2035-10-08">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        
+        <!-- TÙY CHỌN TẢI VỀ Ở GÓC TRÊN BÊN PHẢI -->
+        <div class="download-pane">
+            <div class="export-options">
+                <label class="radio-label">
+                    <input type="radio" name="export-side" value="front" checked> Mặt trước
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="export-side" value="back"> Mặt sau
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="export-side" value="both"> Cả 2
+                </label>
+            </div>
+            <div class="btn-group">
+                <button onclick="exportCard('svg')">Tải SVG (ISO ID-1)</button>
+                <button onclick="exportCard('png')">Tải PNG (4K)</button>
+                <button onclick="exportCard('pdf')">Tải PDF (ISO ID-1)</button>
+            </div>
+        </div>
+
+        <div class="cards-container">
+            <div class="card-section">
+                <div class="card-label">front</div>
+                <div class="card-wrapper" style="background-color: #fff">
+                    <!-- MAT TRUOC -->
+                    <div id="card-front" class="card">
+                        <!-- LỚP CANVAS 0,0 TỪ GÓC TRÊN TRÁI -->
+                        <div>
+                            <div class="c_card_color_2" style="position: absolute; width: calc(4 * var(--mm)); height: calc(4 * var(--mm)); clip-path: polygon(0% 0%, 0% 100%, 100% 0%); background-color: #000000; transform: rotate(135deg); top: calc(9.5 * var(--mm)); left: calc(80 * var(--mm));"></div>
+                            <div                        style="position: absolute; width: calc(4 * var(--mm)); height: calc(4 * var(--mm)); clip-path: polygon(0% 0%, 0% 100%, 100% 0%); background-color: #000000; transform: rotate(135deg); top: calc(34 * var(--mm)); left: calc(80 * var(--mm));"></div>
+                        </div>
+                        <div>
+                            <div class="c_card_color" style="width: calc(85.85 * var(--mm)); height: calc(24.1 * var(--mm)); margin-top: 0; margin-left: 0;"></div>
+                            <div class="c_card_color" style="width: calc(56.41 * var(--mm)); height: calc(4.31 * var(--mm)); margin-top: calc(-0.015 * var(--mm)); margin-left: 0;"></div>
+                            <div class="c_card_color" style="width: calc(4.31 * var(--mm)); height: calc(4.315 * var(--mm)); margin-top: calc(-4.308 * var(--mm)); margin-left: calc(56.33 * var(--mm)); clip-path: polygon(0% 0%, 0% 100%, 100% 0%);"></div>
+                            <div>
+                                <div class="c_card_text_color_1" style=" font-family: Arial; position: absolute; top: calc(2.99 * var(--mm)); left: calc(5.59 * var(--mm)); font-size: 13pt; letter-spacing: -0.06em; line-height: 1;">
+                                    <strong>SỞ GIÁO DỤC VÀ ĐÀO TẠO TỈNH VĨNH LONG<br>TRƯỜNG TRUNG HỌC PHỔ THÔNG NGUYỄN HUỆ</strong>
+                                    <br>
+                                    <strong class="c_card_text_color_2" style=" font-family: Arial; position: absolute; top: calc(3.4 * var(--mm)); font-size: 10.3px;">VINH LONG DEPARTMENT OF EDUCATION AND TRAINING - NGUYEN HUE HIGH SCHOOL</strong>
+                                </div>
+                                <div>
+                                    <div style="font-family: Arial; position: absolute; top: calc(8.4 * var(--mm)); left: calc(5.59 * var(--mm)); font-size: 28px;">
+                                        <p class="c_card_text_color_1"><strong class="c_lastname_place"></strong><br><strong class="c_name_place"></strong></p>
+                                    </div>
+                                    <div style="position: absolute; top: calc(11.2 * var(--mm)); left: calc(28.3 * var(--mm)); font-family: Arial; font-size: 16px; letter-spacing: -0.06em;">
+                                        <div class="c_card_text_color_2">
+                                            <strong>Date of Birth (Ngày sinh):</strong>
+                                            <span id="c_birthdate_plate" class="c_card_text_color_1" style="position: absolute; left: calc(28.8 * var(--mm)); transform: translateX(-100%); text-align: right; white-space: nowrap;"></span>
+                                        </div>
+                                        <div class="c_card_text_color_2">
+                                            <strong>National ID No. (CCCD/CMND):</strong>
+                                            <span id="c_nationalid_plate" class="c_card_text_color_1" style="position: absolute; left: calc(28.8 * var(--mm)); transform: translateX(-100%); text-align: right; white-space: nowrap;"></span>
+                                        </div>
+                                        <div class="c_card_text_color_2">
+                                            <strong>Phone No. / Fax No. (SĐT / Fax):</strong>
+                                            <span id="c_phone_plate" class="c_card_text_color_1" style="position: absolute; left: calc(28.8 * var(--mm)); transform: translateX(-100%); text-align: right; white-space: nowrap;"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="c_card_border_color_1" style="border-top: 4px dashed rgb(255, 255, 255); position: relative; top: calc(-11.8 * var(--mm)); left: calc(5.59 * var(--mm)); width: calc(51.5 * var(--mm)); height: 4px;"></div>
+                                <div>
+                                    <span>
+                                        <div style="position: absolute; top: calc(18 * var(--mm)); left: calc(5.59 * var(--mm)); font-family: Arial; font-size: 16px; letter-spacing: -0.06em;">
+                                            <div class="c_card_text_color_2">
+                                                <strong>Position (Chức vụ):</strong>
+                                                <span id="c_position_plate" class="c_card_text_color_1" style="position: absolute; left: calc(23.5 * var(--mm)); transform: translateX(-100%); text-align: right; white-space: nowrap;"></span>
+                                            </div>
+                                            <div class="c_card_text_color_2">
+                                                <strong>Class (Lớp):</strong>
+                                                <span id="c_class_plate" class="c_card_text_color_1" style="position: absolute; left: calc(23.5 * var(--mm)); transform: translateX(-100%); text-align: right; white-space: nowrap;"></span>
+                                            </div>
+                                            <div class="c_card_text_color_2">
+                                                <strong>Academic Year (Năm học):</strong>
+                                                <span id="c_schoolyear_plate" class="c_card_text_color_1" style="position: absolute; left: calc(23.5 * var(--mm)); transform: translateX(-100%); text-align: right; white-space: nowrap;"></span>
+                                            </div>
+                                        </div>
+                                    </span>
+                                    <span>
+                                        <div style="position: absolute; top: calc(18 * var(--mm)); left: calc(32 * var(--mm)); font-family: Arial; font-size: 16px; letter-spacing: -0.06em;">
+                                            <div class="c_card_text_color_2" style="margin-top: 18px">
+                                                <strong>Card ID:</strong>
+                                                <span id="c_sid_plate" class="c_card_text_color_1" style="position: absolute; left: calc(21.55 * var(--mm)); transform: translateX(-100%); text-align: right; white-space: nowrap;"></span>
+                                            </div>
+                                            <div class="c_card_text_color_2">
+                                                <strong>Format Version:</strong>
+                                                <span class="c_card_text_color_1" style="position: absolute; left: calc(21.55 * var(--mm)); transform: translateX(-100%); text-align: right; white-space: nowrap;">8-934567-890120</span>
+                                            </div>
+                                        </div>
+                                    </span>
+                                </div>
+                                <div class="c_card_border_color_1" style="border-top: 4px solid rgb(255, 255, 255); position: relative; top: calc(-5.5 * var(--mm)); left: calc(5.59 * var(--mm)); width: calc(48 * var(--mm)); height: 4px;"></div>
+                            </div>
+                            <div id="c_qr" style="position:absolute; width: calc(16.5 * var(--mm)); height: calc(16.5 * var(--mm)); top: calc(2.8 * var(--mm)); left: calc(63 * var(--mm)); border: 5px solid #000;"></div>
+                        </div>
+                        <div>
+                            <div id="c_per" style="position:absolute; width: calc(17.82 * var(--mm)); top: calc(27 * var(--mm)); left: calc(62.7385 * var(--mm));"></div>
+                            <div>
+                                <div id="c_hid_plate" style="font-family: 'Courier New', Courier, monospace; position:absolute; top: calc(30.94 * var(--mm)); left: calc(5.59 * var(--mm)); color: white; background-color: black; letter-spacing: -0.06em; font-size: 12px; text-align: center;  width: calc(10.2 * var(--mm));  height: calc(1.2 * var(--mm)); line-height: calc(1.45 * var(--mm)); border-radius: 3px;"></div>
+                                <div>
+                                    <strong style="font-family: Arial; position: absolute; top: calc(33.16 * var(--mm)); left: calc(5.59 * var(--mm)); color: black; letter-spacing: -0.06em; font-size: 44px;">ACCESS CARD</strong>
+                                    <strong id="c_role_en_plate" style="font-family: Arial; position: absolute; top: calc(36.8 * var(--mm)); left: calc(5.59 * var(--mm)); color: black; letter-spacing: -0.06em; font-size: 44px;"></strong>
+                                </div>
+                                <div style="border-top: 4px dashed rgba(0, 0, 0, 0.7); position: relative; top: calc(13 * var(--mm)); left: calc(5.59 * var(--mm)); width: calc(48 * var(--mm)); height: 4px;"></div>
+                                <div>
+                                    <strong id="c_role_vn_plate" style="font-family: Arial; position: absolute; top: calc(44.25 * var(--mm)); left: calc(5.59 * var(--mm)); color: rgba(0,0,0,0.7); letter-spacing: -0.02em; font-size: 18px;"></strong>
+                                    <strong id="c_role_vn_plate" style="font-family: Arial; position: absolute; top: calc(49.5 * var(--mm)); left: calc(5.59 * var(--mm)); color: rgb(0,0,0); font-size: 11px;">This access card must not be shared with or used by individuals</br>without the designated clearance level.</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-section">
+                <div class="card-label">back</div>
+                <div class="card-wrapper" style="background-color: #fff">
+                    <!-- MAT SAU -->
+                    <div id="card-back" class="card">
+                        <!-- CODE CUSTOM MẶT SAU CỦA MÀY VÀO ĐÂY -->
+                        <div>
+                            <div class="c_card_color" style="width: calc(85.6 * var(--mm)); height: calc(53.98 * var(--mm)); margin-top: 0; margin-left: 0;"></div>
+                            <div style="position:absolute; width: calc(85.6 * var(--mm)); height: calc(6.5 * var(--mm)); top: calc(6.5 * var(--mm)); background-color: #000000;"></div>
+                        </div>
+                        <div>
+                            <div>
+                                <div id="c_dm" style="position:absolute; width: calc(5.25 * var(--mm)); height: calc(5.25 * var(--mm)); top: calc(0.7 * var(--mm)); left: calc(3 * var(--mm));"></div>
+                                <div style="position:absolute; top: calc(0.7 * var(--mm)); left: calc(64.6 * var(--mm));">
+                                    <svg
+                                        id="c_bar" 
+                                        width="270"
+                                        height="50"
+                                        x="0px"
+                                        y="0px"
+                                        viewBox="0 0 214 62"
+                                        version="1.1"
+                                        style="transform: translate(0,0)"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        xmlns:svg="http://www.w3.org/2000/svg">
+                                        <defs
+                                            id="defs31" />
+                                        <g
+                                            transform="translate(0, 0)"
+                                            id="g1">
+                                            <text
+                                            style="font: 20px Arial"
+                                            text-anchor="start"
+                                            x="0"
+                                            y="62"
+                                            id="text1">8</text>
+                                        </g>
+                                        <g
+                                            transform="translate(24, 0)"
+                                            id="g3">
+                                            <rect
+                                            x="0"
+                                            y="0"
+                                            width="2"
+                                            height="52"
+                                            id="rect2" />
+                                            <rect
+                                            x="4"
+                                            y="0"
+                                            width="2"
+                                            height="52"
+                                            id="rect3" />
+                                            <text
+                                            style="font: 20px Arial"
+                                            text-anchor="middle"
+                                            x="3"
+                                            y="74"
+                                            id="text3" />
+                                        </g>
+                                        <g
+                                            transform="translate(30, 0)"
+                                            id="g15">
+                                            <rect
+                                            x="6"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect4" />
+                                            <rect
+                                            x="10"
+                                            y="0"
+                                            width="4"
+                                            height="40"
+                                            id="rect5" />
+                                            <rect
+                                            x="16"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect6" />
+                                            <rect
+                                            x="26"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect7" />
+                                            <rect
+                                            x="30"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect8" />
+                                            <rect
+                                            x="38"
+                                            y="0"
+                                            width="4"
+                                            height="40"
+                                            id="rect9" />
+                                            <rect
+                                            x="44"
+                                            y="0"
+                                            width="6"
+                                            height="40"
+                                            id="rect10" />
+                                            <rect
+                                            x="54"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect11" />
+                                            <rect
+                                            x="64"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect12" />
+                                            <rect
+                                            x="68"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect13" />
+                                            <rect
+                                            x="72"
+                                            y="0"
+                                            width="6"
+                                            height="40"
+                                            id="rect14" />
+                                            <rect
+                                            x="80"
+                                            y="0"
+                                            width="4"
+                                            height="40"
+                                            id="rect15" />
+                                            <text
+                                            style="font: 20px Arial"
+                                            text-anchor="middle"
+                                            x="42"
+                                            y="62"
+                                            id="text15">934567</text>
+                                        </g>
+                                        <g
+                                            transform="translate(114, 0)"
+                                            id="g17">
+                                            <rect
+                                            x="2"
+                                            y="0"
+                                            width="2"
+                                            height="52"
+                                            id="rect16" />
+                                            <rect
+                                            x="6"
+                                            y="0"
+                                            width="2"
+                                            height="52"
+                                            id="rect17" />
+                                            <text
+                                            style="font: 20px Arial"
+                                            text-anchor="middle"
+                                            x="5"
+                                            y="74"
+                                            id="text17" />
+                                        </g>
+                                        <g
+                                            transform="translate(124, 0)"
+                                            id="g29">
+                                            <rect
+                                            x="0"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect18" />
+                                            <rect
+                                            x="6"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect19" />
+                                            <rect
+                                            x="14"
+                                            y="0"
+                                            width="6"
+                                            height="40"
+                                            id="rect20" />
+                                            <rect
+                                            x="22"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect21" />
+                                            <rect
+                                            x="28"
+                                            y="0"
+                                            width="6"
+                                            height="40"
+                                            id="rect22" />
+                                            <rect
+                                            x="38"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect23" />
+                                            <rect
+                                            x="42"
+                                            y="0"
+                                            width="4"
+                                            height="40"
+                                            id="rect24" />
+                                            <rect
+                                            x="50"
+                                            y="0"
+                                            width="4"
+                                            height="40"
+                                            id="rect25" />
+                                            <rect
+                                            x="56"
+                                            y="0"
+                                            width="4"
+                                            height="40"
+                                            id="rect26" />
+                                            <rect
+                                            x="62"
+                                            y="0"
+                                            width="4"
+                                            height="40"
+                                            id="rect27" />
+                                            <rect
+                                            x="70"
+                                            y="0"
+                                            width="6"
+                                            height="40"
+                                            id="rect28" />
+                                            <rect
+                                            x="80"
+                                            y="0"
+                                            width="2"
+                                            height="40"
+                                            id="rect29" />
+                                            <text
+                                            style="font: 20px Arial"
+                                            text-anchor="middle"
+                                            x="42"
+                                            y="62"
+                                            id="text29">890120</text>
+                                        </g>
+                                        <g
+                                            transform="translate(208, 0)"
+                                            id="g31">
+                                            <rect
+                                            x="0"
+                                            y="0"
+                                            width="2"
+                                            height="52"
+                                            id="rect30" />
+                                            <rect
+                                            x="4"
+                                            y="0"
+                                            width="2"
+                                            height="52"
+                                            id="rect31" />
+                                            <text
+                                            style="font: 20px Arial"
+                                            text-anchor="middle"
+                                            x="3"
+                                            y="74"
+                                            id="text31" />
+                                        </g>
+                                    </svg>
+                                    <div id="c_id_plate" style=" left: calc(-24.4 * var(--mm)); position:absolute; height: calc(10 * var(--mm)); top: calc(10.5 * var(--mm)); letter-spacing: -0.06em; line-height: 1em; text-align: right; color: white; font-size: 14.5px; text-indent: 8px; font-family: 'Courier New';"></div>
+                                </div>
+                                <div>
+                                    <strong class="c_card_text_color_1" id="c_back_name" style="font-family: Arial; font-size: 24px; position: absolute; top: calc(14 * var(--mm)); left: calc(3 * var(--mm));"></strong>
+                                    <span style="display: grid; position:absolute; width: calc(23 * var(--mm)); height: calc(35 * var(--mm)); top: calc(17 * var(--mm)); left: calc(3 * var(--mm));">
+                                        <div style="position:absolute; left: calc(17.29 * var(--mm));">
+                                            <div>
+                                                <strong class="c_card_text_color_1" style="font-family: Arial; font-size: 11px; position: absolute; top: calc(13 * var(--mm));">VALID<br>FROM</strong>
+                                                <div id="c_validfrom_plate" class="c_card_text_color_1" style="font-family: Calibri; font-size: 20px; position: absolute; top: calc(15 * var(--mm));"></div>
+                                            </div>
+                                            <div>
+                                                <strong class="c_card_text_color_1" style="font-family: Arial; font-size: 11px; position: absolute; top: calc(19 * var(--mm));">VALID<br>THROUGH</strong>
+                                                <div id="c_validto_plate" class="c_card_text_color_1" style="font-family: Calibri; font-size: 20px; position: absolute; top: calc(21 * var(--mm));"></div>
+                                            </div>
+                                        </div>
+                                        <div id="c_credit_plate" style="position:absolute; width: calc(23 * var(--mm)); height: calc(10 * var(--mm)); top: calc(25 * var(--mm)); background-color: #000000; letter-spacing: -0.06em; line-height: 1em; text-align: left; color: white; white-space: normal; word-break: break-word; overflow-wrap: break-word; font-size: 13px; font-family: 'Courier New';"></div>
+                                    </span>
+                                    <span style="display: grid; position:absolute; width: calc(55.25 * var(--mm)); height: calc(35 * var(--mm)); top: calc(17 * var(--mm)); left: calc(28 * var(--mm));">
+                                        <div>
+                                            <strong class="c_card_text_color_1" style="font-family: Arial; font-size: 16px; position: absolute; top: calc(13 * var(--mm));">Chữ ký hợp lệ của Quản Trị Viên / Administrator’s Authorized Signature</strong>
+                                            <div style="position:absolute; top: calc(14.75 * var(--mm)); height: calc(7 * var(--mm))">
+                                                <svg
+                                                xmlns:dc="http://purl.org/dc/elements/1.1/"
+                                                xmlns:cc="http://creativecommons.org/ns#"
+                                                xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                                                xmlns:svg="http://www.w3.org/2000/svg"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                viewBox="0 0 1512 189"
+                                                height="100%"
+                                                width="100%"
+                                                xml:space="preserve"
+                                                id="svg2"
+                                                version="1.1">
+                                                <defs
+                                                    id="defs6"><clipPath
+                                                    id="clipPath14"
+                                                    clipPathUnits="userSpaceOnUse"><path
+                                                        id="path12"
+                                                        d="M 0,7.2899976 H 1134 V 149.04 H 0 Z" /></clipPath><clipPath
+                                                    id="clipPath24"
+                                                    clipPathUnits="userSpaceOnUse"><path
+                                                        style="clip-rule:evenodd"
+                                                        id="path22"
+                                                        d="M 0,0 H 4725 V 590.625 H 0 Z" /></clipPath><clipPath
+                                                    id="clipPath36"
+                                                    clipPathUnits="userSpaceOnUse"><path
+                                                        style="clip-rule:evenodd"
+                                                        id="path34"
+                                                        d="M 0,0 H 4725 V 590.625 H 0 Z" /></clipPath><clipPath
+                                                    id="clipPath42"
+                                                    clipPathUnits="userSpaceOnUse"><path
+                                                        id="path40"
+                                                        d="M 0,0 H 4725 V 591 H 0 Z" /></clipPath><clipPath
+                                                    id="clipPath46"
+                                                    clipPathUnits="userSpaceOnUse"><path
+                                                        style="clip-rule:evenodd"
+                                                        id="path44"
+                                                        d="M 0,0 H 4725.5908 V 590.69885 H 0 Z" /></clipPath></defs><g
+                                                    clip-path="url(#clipPath14)"
+                                                    transform="matrix(1.3333333,0,0,-1.3333333,0,198.72)"
+                                                    id="g10"><g
+                                                    transform="matrix(0.23999999,0,0,-0.23999999,0,149.03999)"
+                                                    id="g16"><g
+                                                        id="g18"><g
+                                                        clip-path="url(#clipPath24)"
+                                                        id="g20"><g
+                                                            transform="scale(3.125)"
+                                                            id="g26"><path
+                                                            id="path28"
+                                                            style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                            d="M 0,0 H 1512 V 189 H 0 Z" /></g></g></g><g
+                                                        id="g30"><g
+                                                        clip-path="url(#clipPath36)"
+                                                        id="g32"><g
+                                                            id="g38" /><g
+                                                            id="g308"><g
+                                                            id="g306"
+                                                            clip-path="url(#clipPath42)"><g
+                                                                id="g54"><g
+                                                                id="g52"
+                                                                clip-path="url(#clipPath46)"><g
+                                                                    id="g50"
+                                                                    transform="scale(3.1253908)"><path
+                                                                    id="path48"
+                                                                    style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                    d="M 0,0 H 1512 V 189 H 0 Z" /></g></g></g><g
+                                                                id="g96"
+                                                                transform="matrix(3.1253908,0,0,3.1253908,-1181.2501,-4.669497)"><text
+                                                                id="text58"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(376.32822,15)"><tspan
+                                                                    id="tspan56"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622">guyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text62"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(482.48438,15)"><tspan
+                                                                    id="tspan60"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text66"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(646.53125,15)"><tspan
+                                                                    id="tspan64"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text70"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(810.57813,15)"><tspan
+                                                                    id="tspan68"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text74"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(974.625,15)"><tspan
+                                                                    id="tspan72"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text78"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1138.6719,15)"><tspan
+                                                                    id="tspan76"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text82"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1302.7188,15)"><tspan
+                                                                    id="tspan80"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text86"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1466.7656,15)"><tspan
+                                                                    id="tspan84"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text90"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1630.8125,15)"><tspan
+                                                                    id="tspan88"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text94"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1794.8594,15)"><tspan
+                                                                    id="tspan92"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075">THPT Nguyễ</tspan></text>
+                                                </g><g
+                                                                id="g138"
+                                                                transform="matrix(3.1253908,0,0,3.1253908,-1051.8189,171.13887)"><text
+                                                                id="text100"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(328.08595,15)"><tspan
+                                                                    id="tspan98"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989">HPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text104"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(482.48438,15)"><tspan
+                                                                    id="tspan102"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text108"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(646.53125,15)"><tspan
+                                                                    id="tspan106"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text112"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(810.57813,15)"><tspan
+                                                                    id="tspan110"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text116"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(974.625,15)"><tspan
+                                                                    id="tspan114"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text120"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1138.6719,15)"><tspan
+                                                                    id="tspan118"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text124"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1302.7188,15)"><tspan
+                                                                    id="tspan122"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text128"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1466.7656,15)"><tspan
+                                                                    id="tspan126"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text132"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1630.8125,15)"><tspan
+                                                                    id="tspan130"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text136"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1794.8594,15)"><tspan
+                                                                    id="tspan134"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264">THPT N</tspan></text>
+                                                </g><g
+                                                                id="g180"
+                                                                transform="matrix(3.1253908,0,0,3.1253908,-1147.808,348.14072)"><text
+                                                                id="text142"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(366.67976,15)"><tspan
+                                                                    id="tspan140"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075">Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text146"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(482.48438,15)"><tspan
+                                                                    id="tspan144"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text150"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(646.53125,15)"><tspan
+                                                                    id="tspan148"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text154"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(810.57813,15)"><tspan
+                                                                    id="tspan152"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text158"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(974.625,15)"><tspan
+                                                                    id="tspan156"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text162"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1138.6719,15)"><tspan
+                                                                    id="tspan160"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text166"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1302.7188,15)"><tspan
+                                                                    id="tspan164"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text170"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1466.7656,15)"><tspan
+                                                                    id="tspan168"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text174"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1630.8125,15)"><tspan
+                                                                    id="tspan172"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text178"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1794.8594,15)"><tspan
+                                                                    id="tspan176"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622">THPT Nguy</tspan></text>
+                                                </g><g
+                                                                id="g206"
+                                                                transform="matrix(3.1253908,0,0,3.1253908,-1687.0615,49.452118)"><text
+                                                                id="text184"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(549.79688,31)"><tspan
+                                                                    id="tspan182"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text188"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(818.5,31)"><tspan
+                                                                    id="tspan186"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text192"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1087.2031,31)"><tspan
+                                                                    id="tspan190"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text196"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1355.9063,31)"><tspan
+                                                                    id="tspan194"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text200"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1624.6094,31)"><tspan
+                                                                    id="tspan198"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text204"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1893.3125,31)"><tspan
+                                                                    id="tspan202"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297">THPT Nguy</tspan></text>
+                                                </g><g
+                                                                id="g232"
+                                                                transform="matrix(3.1253908,0,0,3.1253908,-2013.2787,225.26048)"><text
+                                                                id="text210"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(640.60427,31)"><tspan
+                                                                    id="tspan208"
+                                                                    y="0"
+                                                                    x="0 22.195389 37.562576 54.655579 70.022766 83.664154 100.75716 108.44075 132.34694 149.43994">Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text214"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(818.5,31)"><tspan
+                                                                    id="tspan212"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text218"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1087.2031,31)"><tspan
+                                                                    id="tspan216"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text222"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1355.9063,31)"><tspan
+                                                                    id="tspan220"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text226"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1624.6094,31)"><tspan
+                                                                    id="tspan224"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text230"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1893.3125,31)"><tspan
+                                                                    id="tspan228"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                </g><g
+                                                                id="g262"
+                                                                transform="matrix(3.1253908,0,0,3.1253908,-2184.8262,402.2623)"><text
+                                                                id="text236"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(695.25985,31)"><tspan
+                                                                    id="tspan234"
+                                                                    y="0"
+                                                                    x="0 15.367188 29.008575 46.101578 53.785172 77.69136 94.784363">yễn Huệ</tspan></text>
+                                                <text
+                                                                id="text240"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(818.5,31)"><tspan
+                                                                    id="tspan238"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text244"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1087.2031,31)"><tspan
+                                                                    id="tspan242"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text248"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1355.9063,31)"><tspan
+                                                                    id="tspan246"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text252"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1624.6094,31)"><tspan
+                                                                    id="tspan250"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text256"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1893.3125,31)"><tspan
+                                                                    id="tspan254"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777 63.179565 83.123795 90.807388 113.00278 128.36996 145.46297 160.83015 174.47154 191.56454 199.24814 223.15433 240.24733">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text260"
+                                                                style="font-variant:normal;font-weight:bold;font-size:30.73999977px;font-family:TimesNewRomanPS;-inkscape-font-specification:TimesNewRomanPS-BoldMT;writing-mode:lr-tb;fill:#cf3232;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(2162.0156,31)"><tspan
+                                                                    id="tspan258"
+                                                                    y="0"
+                                                                    x="0 20.499588 44.405777">THP</tspan></text>
+                                                </g><g
+                                                                id="g304"
+                                                                transform="matrix(3.1253908,0,0,3.1253908,-1110.8813,522.01715)"><text
+                                                                id="text266"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(347.38286,15)"><tspan
+                                                                    id="tspan264"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298">T Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text270"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(482.48438,15)"><tspan
+                                                                    id="tspan268"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text274"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(646.53125,15)"><tspan
+                                                                    id="tspan272"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text278"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(810.57813,15)"><tspan
+                                                                    id="tspan276"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text282"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(974.625,15)"><tspan
+                                                                    id="tspan280"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text286"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1138.6719,15)"><tspan
+                                                                    id="tspan284"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text290"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1302.7188,15)"><tspan
+                                                                    id="tspan288"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text294"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1466.7656,15)"><tspan
+                                                                    id="tspan292"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text298"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1630.8125,15)"><tspan
+                                                                    id="tspan296"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169 77.187622 86.836075 96.484528 106.13298 115.78143 125.42989 135.07834">THPT Nguyễn Huệ</tspan></text>
+                                                <text
+                                                                id="text302"
+                                                                style="font-variant:normal;font-weight:bold;font-size:16.07999992px;font-family:'Courier 10 Pitch';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#a6a6a6;fill-opacity:1;fill-rule:nonzero;stroke:none"
+                                                                transform="translate(1794.8594,15)"><tspan
+                                                                    id="tspan300"
+                                                                    y="0"
+                                                                    x="0 9.6484528 19.296906 28.945358 38.593811 48.242264 57.890717 67.539169">THPT Ngu</tspan></text>
+                                                </g></g></g></g></g></g></g></svg>
+                                            </div>
+                                            <div class="c_card_text_color_1" style="font-family: Arial; font-size: 16px; position: absolute; top: calc(23 * var(--mm)); width: calc(55.25 * var(--mm));">
+                                                Thẻ truy cập này không được chia sẻ hoặc sử dụng bởi cá nhân không đủ cấp quyền được chỉ định. Mọi hành vi truy cập trái phép sẽ bị giám sát, ngăn chặn và xử lý theo quy định. 
+                                            </div>
+                                            <div class="c_card_text_color_1" style="font-family: Arial; font-size: 16px; position: absolute; top: calc(26.5 * var(--mm)); width: calc(55.25 * var(--mm));">
+                                                This access card must not be shared with or used by individuals without the designated clearance level. All unauthorized access attempts will be monitored, prevented, and handled accordingly.
+                                            </div>
+                                            <strong class="c_card_text_color_1" style="font-family: Arial; font-size: 12px; position: absolute; top: calc(33.9 * var(--mm));">
+                                                nguyenhuehighschool.edu.vn
+                                            </strong>
+                                            <div class="c_card_text_color_1" style="position: absolute; top: calc(32.65 * var(--mm)); left: calc(52.4 * var(--mm)); width: calc(3 * var(--mm)); height: calc(3 * var(--mm));">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%" fill="currentColor">
+                                                    <path d="M 21 5 L 6 5 L 6 70 L 21 70 L 21 60 L 14 60 L 14 15 L 21 15 Z" />
+                                                    <path d="M 29 5 L 44 5 L 44 70 L 29 70 L 29 60 L 36 60 L 36 15 L 29 15 Z" />
+                                                    
+                                                    <path d="M 71 5 L 56 5 L 56 70 L 71 70 L 71 60 L 64 60 L 64 15 L 71 15 Z" />
+                                                    <path d="M 79 5 L 94 5 L 94 70 L 79 70 L 79 60 L 86 60 L 86 15 L 79 15 Z" />
+                                                    
+                                                    <rect x="6" y="80" width="88" height="12" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bwip-js/dist/bwip-js-min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script>
+        const c_card_color = document.querySelectorAll(".c_card_color");
+        const c_card_text_color_1 = document.querySelectorAll(".c_card_text_color_1");
+        const c_card_text_color_2 = document.querySelectorAll(".c_card_text_color_2");
+        const c_lastname_place = document.querySelectorAll(".c_lastname_place");
+        const c_name_place = document.querySelectorAll(".c_name_place");
+        const c_card_border_color_1 = document.querySelectorAll(".c_card_border_color_1");
+        const c_card_color_2 = document.querySelectorAll(".c_card_color_2");
+
+        const c_lastname = document.getElementById("c_lastname");
+        const c_name = document.getElementById("c_name");
+        const c_color_picker = document.getElementById("c_color_picker");
+        const c_birthdate = document.getElementById("c_birthdate");
+        const c_nationalid = document.getElementById("c_nationalid");
+        const c_phone = document.getElementById("c_phone");
+        const c_birthdate_plate = document.getElementById("c_birthdate_plate");
+        const c_nationalid_plate = document.getElementById("c_nationalid_plate");
+        const c_phone_plate = document.getElementById("c_phone_plate");
+        const c_position = document.getElementById("c_position");
+        const c_class = document.getElementById("c_class");
+        const c_schoolyear = document.getElementById("c_schoolyear");
+        const c_position_plate = document.getElementById("c_position_plate");
+        const c_class_plate = document.getElementById("c_class_plate");
+        const c_schoolyear_plate = document.getElementById("c_schoolyear_plate");
+        const c_hid = document.getElementById("c_hid");
+        const c_sid = document.getElementById("c_sid");
+        const c_sid_plate = document.getElementById("c_sid_plate");
+        const c_qr = document.getElementById("c_qr");
+        const c_sex = document.getElementById("c_sex");
+        const c_per_key = document.getElementById("c_per_key");
+        const c_per_range = document.getElementById("c_per_range");
+        const c_per_gear = document.getElementById("c_per_gear");
+        const c_per = document.getElementById("c_per");
+        const c_hid_plate = document.getElementById("c_hid_plate");
+        const c_role_en = document.getElementById("c_role_en");
+        const c_role_en_plate = document.getElementById("c_role_en_plate");
+        const c_role_vn_plate = document.getElementById("c_role_vn_plate");
+        const c_dm = document.getElementById("c_dm");
+        const c_bar = document.getElementById("c_bar");
+        const c_back_name = document.getElementById("c_back_name");
+        const c_validfrom = document.getElementById("c_validfrom");
+        const c_validto = document.getElementById("c_validto");
+        const c_validfrom_plate = document.getElementById("c_validfrom_plate");
+        const c_validto_plate = document.getElementById("c_validto_plate");
+        const c_credit_plate = document.getElementById("c_credit_plate");
+        const c_id_plate = document.getElementById("c_id_plate");
+
+
+        const table = [
+            "000000", // 0
+            "000001", // 1
+            "000010", // 2
+            "000110", // 3
+            "001010", // 4
+            "011010", // 5
+            "101010"  // 6
+        ];
+
+        {
+            //begin
+            update()
+        }
+
+
+        function getContrastColor(hex, alpha = 1) {
+            hex = hex.replace("#", "");
+            if (alpha ==1) return (parseInt(hex.substr(0, 2), 16) * 299 + parseInt(hex.substr(2, 2), 16) * 587 + parseInt(hex.substr(4, 2), 16) * 114) / 1000 > 128 ? `#000000` : `#ffffff`;
+            return (parseInt(hex.substr(0, 2), 16) * 299 + parseInt(hex.substr(2, 2), 16) * 587 + parseInt(hex.substr(4, 2), 16) * 114) / 1000 > 128 ? `rgba(0, 0, 0, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
+        }
+
+        async function translate(text, from = "en", to = "vi") {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text)}`;
+
+            const res = await fetch(url);
+            const data = await res.json();
+
+            return data[0].map(x => x[0]).join("");
+        }
+        //function generatePermissionSvg(permissions, times, access, color = '#111111') {
+        //    const OBJECT_WIDTH = 270;
+        //    const OBJECT_HEIGHT = 360;
+        //    const CELL = 90;
+        //    const TILE_INSET = 6;
+        //    const TILE_SIZE = CELL - TILE_INSET * 2;
+        //    const TILE_RADIUS = 14;
+        //    const DOT_RADIUS = 24;
+        //    const DOT_STROKE = 13;
+//
+        //    const columns = [
+        //        { id: "permissions", label: "Permissions", icon: "key", value: permissions },
+        //        { id: "times", label: "Times", icon: "sundial", value: times },
+        //        { id: "access", label: "Access", icon: "gear", value: access }
+        //    ];
+//
+        //    function clampLevel(value) {
+        //        const parsed = Number.parseInt(value, 10);
+        //        if (Number.isNaN(parsed)) {
+        //        return 0;
+        //        }
+        //        return Math.max(0, Math.min(6, parsed));
+        //    }
+//
+        //    function getDotState(level, rowIndex) {
+        //        const slotFromBottom = 3 - rowIndex;
+        //        const oddThreshold = slotFromBottom * 2 - 1;
+        //        const evenThreshold = slotFromBottom * 2;
+//
+        //        if (level >= evenThreshold) {
+        //        return "filled";
+        //        }
+//
+        //        if (level === oddThreshold) {
+        //        return "hollow";
+        //        }
+//
+        //        return "empty";
+        //    }
+//
+        //    function renderTopTile(columnIndex, rowIndex) {
+        //        const x = columnIndex * CELL + TILE_INSET;
+        //        const y = rowIndex * CELL + TILE_INSET;
+//
+        //        return `
+        //        <rect
+        //            x="${x}"
+        //            y="${y}"
+        //            width="${TILE_SIZE}"
+        //            height="${TILE_SIZE}"
+        //            rx="${TILE_RADIUS}"
+        //            fill="#ffffff"
+        //            stroke="${color}"
+        //            stroke-width="3"
+        //        />
+        //        `;
+        //    }
+//
+        //    function renderIconTile(columnIndex) {
+        //        const x = columnIndex * CELL + TILE_INSET;
+        //        const y = 3 * CELL + TILE_INSET;
+//
+        //        return `
+        //        <rect
+        //            x="${x}"
+        //            y="${y}"
+        //            width="${TILE_SIZE}"
+        //            height="${TILE_SIZE}"
+        //            rx="${TILE_RADIUS}"
+        //            fill="${color}"
+        //        />
+        //        `;
+        //    }
+//
+        //    function renderDot(columnIndex, rowIndex, state) {
+        //        if (state === "empty") {
+        //        return "";
+        //        }
+//
+        //        const cx = columnIndex * CELL + CELL / 2;
+        //        const cy = rowIndex * CELL + CELL / 2;
+        //        const fill = state === "filled" ? color : "#ffffff";
+        //        const stroke = color;
+//
+        //        return `
+        //        <circle
+        //            cx="${cx}"
+        //            cy="${cy}"
+        //            r="${DOT_RADIUS}"
+        //            fill="${fill}"
+        //            stroke="${stroke}"
+        //            stroke-width="${DOT_STROKE}"
+        //        />
+        //        `;
+        //    }
+//
+        //    function renderIconUse(columnIndex, iconId) {
+        //        const x = columnIndex * CELL + TILE_INSET;
+        //        const y = 3 * CELL + TILE_INSET;
+//
+        //        return `
+        //        <use
+        //            href="#icon-${iconId}"
+        //            x="${x + 17}"
+        //            y="${y + 17}"
+        //            width="${TILE_SIZE - 34}"
+        //            height="${TILE_SIZE - 34}"
+        //            color="#f7f4ed"
+        //        />
+        //        `;
+        //    }
+//
+        //    const topTiles = [];
+        //    const dots = [];
+        //    const iconTiles = [];
+        //    const icons = [];
+//
+        //    columns.forEach((column, columnIndex) => {
+        //        const value = clampLevel(column.value);
+        //        for (let rowIndex = 0; rowIndex < 3; rowIndex += 1) {
+        //        topTiles.push(renderTopTile(columnIndex, rowIndex));
+        //        dots.push(renderDot(columnIndex, rowIndex, getDotState(value, rowIndex)));
+        //        }
+//
+        //        iconTiles.push(renderIconTile(columnIndex));
+        //        icons.push(renderIconUse(columnIndex, column.icon));
+        //    });
+//
+        //    return `
+        //        <svg
+        //        xmlns="http://www.w3.org/2000/svg"
+        //        width="100%"
+        //        height="auto"
+        //        viewBox="0 0 ${OBJECT_WIDTH} ${OBJECT_HEIGHT}"
+        //        aria-label="Permission object"
+        //        role="img"
+        //        >
+        //        <title>Permission object</title>
+        //        <defs>
+        //            <symbol id="icon-key" viewBox="0 0 24 24">
+        //            <path
+        //                fill="currentColor"
+        //                fill-rule="evenodd"
+        //                clip-rule="evenodd"
+        //                d="M22.0607 4.06066C22.6464 3.47487 22.6464 2.52513 22.0607 1.93934C21.4749 1.35355 20.5251 1.35355 19.9393 1.93934L11.2747 10.6039C10.1856 9.90521 8.89011 9.5 7.5 9.5C3.63401 9.5 0.5 12.634 0.5 16.5C0.5 20.366 3.63401 23.5 7.5 23.5C11.366 23.5 14.5 20.366 14.5 16.5C14.5 15.1099 14.0948 13.8144 13.3961 12.7253L16.2129 9.90838L17.4841 11.1795C18.2652 11.9606 19.5315 11.9606 20.3125 11.1795L22.7889 8.70313C23.57 7.92208 23.57 6.65575 22.7889 5.8747L21.5178 4.60354L22.0607 4.06066ZM3.5 16.5C3.5 14.2909 5.29086 12.5 7.5 12.5C9.70914 12.5 11.5 14.2909 11.5 16.5C11.5 18.7091 9.70914 20.5 7.5 20.5C5.29086 20.5 3.5 18.7091 3.5 16.5Z"
+        //            />
+        //            </symbol>
+//
+        //            <symbol id="icon-gear" viewBox="0 0 512 512">
+        //            <path
+        //                fill="currentColor"
+        //                d="M497.569 215.166L442.224 202.102C438.192 188.156 432.729 174.832 425.848 162.37L455.698 114.067C460.268 106.67 459.15 97.121 453.01 90.981L421.02 58.991C414.891 52.862 405.342 51.743 397.944 56.313L349.652 86.164C337.19 79.282 323.867 73.82 309.92 69.787L296.856 14.419C294.856 5.978 287.306 0 278.63 0H233.393C224.715 0 217.166 5.978 215.166 14.419L202.102 69.787C188.156 73.819 174.832 79.271 162.37 86.164L114.067 56.292C106.68 51.743 97.121 52.851 90.981 58.991L58.99 90.97C52.86 97.11 51.742 106.679 56.301 114.057L86.163 162.37C79.281 174.832 73.819 188.156 69.796 202.091L14.418 215.156C5.978 217.165 0 224.704 0 233.392V278.618C0 287.296 5.978 294.855 14.418 296.844L69.796 309.909C73.828 323.855 79.281 337.168 86.163 349.619L56.291 397.943C51.742 405.341 52.85 414.9 58.99 421.041L90.969 453.02C97.109 459.16 106.678 460.277 114.056 455.708L162.379 425.836C174.842 432.718 188.165 438.18 202.101 442.202L215.165 497.568C217.165 506.031 224.714 512 233.392 512H278.629C287.306 512 294.855 506.031 296.855 497.568L309.919 442.202C323.856 438.181 337.178 432.718 349.631 425.836L397.943 455.697C405.341 460.267 414.89 459.149 421.03 453.009L453.019 421.019C459.149 414.89 460.267 405.331 455.697 397.932L425.836 349.63C432.729 337.178 438.181 323.856 442.213 309.909L497.579 296.844C506.042 294.843 512 287.305 512 278.618V233.38C512 224.702 506.032 217.165 497.569 215.166ZM256.006 303.103C230.004 303.103 208.908 282.006 208.908 255.995C208.908 229.984 230.004 208.887 256.006 208.887C282.017 208.887 303.114 229.984 303.114 255.995C303.114 282.006 282.017 303.103 256.006 303.103Z"
+        //            />
+        //            </symbol>
+//
+        //            <symbol id="icon-sundial" viewBox="0 0 24 24">
+        //            <path
+        //                fill="currentColor"
+        //                fill-rule="evenodd"
+        //                clip-rule="evenodd"
+        //                d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21ZM12.0796 5.06765C12 5.14181 12 5.2612 12 5.5V11.7113C12 11.8522 12 11.9226 11.9665 11.9807C11.933 12.0387 11.872 12.0739 11.75 12.1443L6.37083 15.25C6.16403 15.3694 6.06063 15.4291 6.03624 15.5351C6.01184 15.6412 6.07559 15.7354 6.20307 15.9237C6.79578 16.7994 7.58052 17.5313 8.5 18.0622C9.56413 18.6766 10.7712 19 12 19C13.2288 19 14.4359 18.6766 15.5 18.0622C16.5641 17.4478 17.4478 16.5641 18.0622 15.5C18.6766 14.4359 19 13.2288 19 12C19 10.7712 18.6766 9.56413 18.0622 8.5C17.4478 7.43587 16.5641 6.5522 15.5 5.93782C14.5805 5.40696 13.5543 5.09331 12.4996 5.01785C12.2727 5.00162 12.1593 4.9935 12.0796 5.06765Z"
+        //            />
+        //            </symbol>
+        //        </defs>
+//
+        //        ${topTiles.join("")}
+        //        ${dots.join("")}
+        //        ${iconTiles.join("")}
+        //        ${icons.join("")}
+        //        </svg>
+        //    `.trim();
+        //}
+        function generatePermissionSvg(permissions, times, access, color = '#111111') {
+            const OBJECT_WIDTH = 270;
+            const OBJECT_HEIGHT = 360;
+            const CELL = 90;
+            const TILE_INSET = 6;
+            const TILE_SIZE = CELL - TILE_INSET * 2;
+            const TILE_RADIUS = 14;
+            const DOT_RADIUS = 24;
+            const DOT_STROKE = 13;
+
+            const columns = [
+                { id: "permissions", label: "Permissions", icon: "key", value: permissions },
+                { id: "times", label: "Times", icon: "sundial", value: times },
+                { id: "access", label: "Access", icon: "gear", value: access }
+            ];
+
+            function clampLevel(value) {
+                const parsed = Number.parseInt(value, 10);
+                if (Number.isNaN(parsed)) {
+                return 0;
+                }
+                return Math.max(0, Math.min(6, parsed));
+            }
+
+            function getDotState(level, rowIndex) {
+                const slotFromBottom = 3 - rowIndex;
+                const oddThreshold = slotFromBottom * 2 - 1;
+                const evenThreshold = slotFromBottom * 2;
+
+                if (level >= evenThreshold) {
+                return "filled";
+                }
+
+                if (level === oddThreshold) {
+                return "hollow";
+                }
+
+                return "empty";
+            }
+
+            function renderTopTile(columnIndex, rowIndex) {
+                const x = columnIndex * CELL + TILE_INSET;
+                const y = rowIndex * CELL + TILE_INSET;
+
+                return `
+                <rect
+                    x="${x}"
+                    y="${y}"
+                    width="${TILE_SIZE}"
+                    height="${TILE_SIZE}"
+                    rx="${TILE_RADIUS}"
+                    fill="none"
+                    stroke="${color}"
+                    stroke-width="3"
+                />
+                `;
+            }
+
+            function renderIconTile(columnIndex) {
+                const x = columnIndex * CELL + TILE_INSET;
+                const y = 3 * CELL + TILE_INSET;
+
+                return `
+                <rect
+                    x="${x}"
+                    y="${y}"
+                    width="${TILE_SIZE}"
+                    height="${TILE_SIZE}"
+                    rx="${TILE_RADIUS}"
+                    fill="${color}"
+                />
+                `;
+            }
+
+            function renderDot(columnIndex, rowIndex, state) {
+                if (state === "empty") {
+                return "";
+                }
+
+                const cx = columnIndex * CELL + CELL / 2;
+                const cy = rowIndex * CELL + CELL / 2;
+                const fill = state === "filled" ? color : "none";
+                const stroke = color;
+
+                return `
+                <circle
+                    cx="${cx}"
+                    cy="${cy}"
+                    r="${DOT_RADIUS}"
+                    fill="${fill}"
+                    stroke="${stroke}"
+                    stroke-width="${DOT_STROKE}"
+                />
+                `;
+            }
+
+            function renderIconUse(columnIndex, iconId) {
+                const x = columnIndex * CELL + TILE_INSET;
+                const y = 3 * CELL + TILE_INSET;
+
+                return `
+                <use
+                    href="#icon-${iconId}"
+                    x="${x + 17}"
+                    y="${y + 17}"
+                    width="${TILE_SIZE - 34}"
+                    height="${TILE_SIZE - 34}"
+                    color="white"
+                />
+                `;
+            }
+
+            const topTiles = [];
+            const dots = [];
+            const iconTiles = [];
+            const icons = [];
+
+            columns.forEach((column, columnIndex) => {
+                const value = clampLevel(column.value);
+                for (let rowIndex = 0; rowIndex < 3; rowIndex += 1) {
+                topTiles.push(renderTopTile(columnIndex, rowIndex));
+                dots.push(renderDot(columnIndex, rowIndex, getDotState(value, rowIndex)));
+                }
+
+                iconTiles.push(renderIconTile(columnIndex));
+                icons.push(renderIconUse(columnIndex, column.icon));
+            });
+
+            return `
+                <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="100%"
+                height="auto"
+                viewBox="0 0 ${OBJECT_WIDTH} ${OBJECT_HEIGHT}"
+                aria-label="Permission object"
+                role="img"
+                >
+                <title>Permission object</title>
+                <defs>
+                    <symbol id="icon-key" viewBox="0 0 24 24">
+                    <path
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                        clip-rule="evenodd"
+                        d="M22.0607 4.06066C22.6464 3.47487 22.6464 2.52513 22.0607 1.93934C21.4749 1.35355 20.5251 1.35355 19.9393 1.93934L11.2747 10.6039C10.1856 9.90521 8.89011 9.5 7.5 9.5C3.63401 9.5 0.5 12.634 0.5 16.5C0.5 20.366 3.63401 23.5 7.5 23.5C11.366 23.5 14.5 20.366 14.5 16.5C14.5 15.1099 14.0948 13.8144 13.3961 12.7253L16.2129 9.90838L17.4841 11.1795C18.2652 11.9606 19.5315 11.9606 20.3125 11.1795L22.7889 8.70313C23.57 7.92208 23.57 6.65575 22.7889 5.8747L21.5178 4.60354L22.0607 4.06066ZM3.5 16.5C3.5 14.2909 5.29086 12.5 7.5 12.5C9.70914 12.5 11.5 14.2909 11.5 16.5C11.5 18.7091 9.70914 20.5 7.5 20.5C5.29086 20.5 3.5 18.7091 3.5 16.5Z"
+                    />
+                    </symbol>
+
+                    <symbol id="icon-gear" viewBox="0 0 512 512">
+                    <path
+                        fill="currentColor"
+                        d="M497.569 215.166L442.224 202.102C438.192 188.156 432.729 174.832 425.848 162.37L455.698 114.067C460.268 106.67 459.15 97.121 453.01 90.981L421.02 58.991C414.891 52.862 405.342 51.743 397.944 56.313L349.652 86.164C337.19 79.282 323.867 73.82 309.92 69.787L296.856 14.419C294.856 5.978 287.306 0 278.63 0H233.393C224.715 0 217.166 5.978 215.166 14.419L202.102 69.787C188.156 73.819 174.832 79.271 162.37 86.164L114.067 56.292C106.68 51.743 97.121 52.851 90.981 58.991L58.99 90.97C52.86 97.11 51.742 106.679 56.301 114.057L86.163 162.37C79.281 174.832 73.819 188.156 69.796 202.091L14.418 215.156C5.978 217.165 0 224.704 0 233.392V278.618C0 287.296 5.978 294.855 14.418 296.844L69.796 309.909C73.828 323.855 79.281 337.168 86.163 349.619L56.291 397.943C51.742 405.341 52.85 414.9 58.99 421.041L90.969 453.02C97.109 459.16 106.678 460.277 114.056 455.708L162.379 425.836C174.842 432.718 188.165 438.18 202.101 442.202L215.165 497.568C217.165 506.031 224.714 512 233.392 512H278.629C287.306 512 294.855 506.031 296.855 497.568L309.919 442.202C323.856 438.181 337.178 432.718 349.631 425.836L397.943 455.697C405.341 460.267 414.89 459.149 421.03 453.009L453.019 421.019C459.149 414.89 460.267 405.331 455.697 397.932L425.836 349.63C432.729 337.178 438.181 323.856 442.213 309.909L497.579 296.844C506.042 294.843 512 287.305 512 278.618V233.38C512 224.702 506.032 217.165 497.569 215.166ZM256.006 303.103C230.004 303.103 208.908 282.006 208.908 255.995C208.908 229.984 230.004 208.887 256.006 208.887C282.017 208.887 303.114 229.984 303.114 255.995C303.114 282.006 282.017 303.103 256.006 303.103Z"
+                    />
+                    </symbol>
+
+                    <symbol id="icon-sundial" viewBox="0 0 24 24">
+                    <path
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                        clip-rule="evenodd"
+                        d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21ZM12.0796 5.06765C12 5.14181 12 5.2612 12 5.5V11.7113C12 11.8522 12 11.9226 11.9665 11.9807C11.933 12.0387 11.872 12.0739 11.75 12.1443L6.37083 15.25C6.16403 15.3694 6.06063 15.4291 6.03624 15.5351C6.01184 15.6412 6.07559 15.7354 6.20307 15.9237C6.79578 16.7994 7.58052 17.5313 8.5 18.0622C9.56413 18.6766 10.7712 19 12 19C13.2288 19 14.4359 18.6766 15.5 18.0622C16.5641 17.4478 17.4478 16.5641 18.0622 15.5C18.6766 14.4359 19 13.2288 19 12C19 10.7712 18.6766 9.56413 18.0622 8.5C17.4478 7.43587 16.5641 6.5522 15.5 5.93782C14.5805 5.40696 13.5543 5.09331 12.4996 5.01785C12.2727 5.00162 12.1593 4.9935 12.0796 5.06765Z"
+                    />
+                    </symbol>
+
+                    <mask id="icon-mask-0">
+                    <rect width="100%" height="100%" fill="white"/>
+                    <use href="#icon-key" x="17" y="17" width="44" height="44" fill="black"/>
+                    </mask>
+                    <mask id="icon-mask-1">
+                    <rect width="100%" height="100%" fill="white"/>
+                    <use href="#icon-sundial" x="17" y="17" width="44" height="44" fill="black"/>
+                    </mask>
+                    <mask id="icon-mask-2">
+                    <rect width="100%" height="100%" fill="white"/>
+                    <use href="#icon-gear" x="17" y="17" width="44" height="44" fill="black"/>
+                    </mask>
+                </defs>
+
+                ${topTiles.join("")}
+                ${dots.join("")}
+                ${iconTiles.join("")}
+                ${icons.join("")}
+                </svg>
+            `.trim();
+        }
+
+        // Hàm export giữ nguyên độ xịn
+        async function exportCard(format) {
+            const side = document.querySelector('input[name="export-side"]:checked').value;
+            const cards = [];
+            
+            if (side === 'front' || side === 'both') cards.push({ el: document.getElementById('card-front'), suffix: 'mat-truoc' });
+            if (side === 'back' || side === 'both') cards.push({ el: document.getElementById('card-back'), suffix: 'mat-sau' });
+
+            const scale4k = 3840 / 1011; 
+            const exportOptions = {
+                style: {
+                    transform: 'none',
+                    transformOrigin: 'top left',
+                    margin: '0'
+                },
+                fontEmbedCSS: '' 
+            };
+
+            for (let item of cards) {
+                try {
+                    if (format === 'svg') {
+                        let dataUrl = await htmlToImage.toSvg(item.el, exportOptions);
+                        
+                        let parts = dataUrl.split(',');
+                        let svgContent = decodeURIComponent(parts[1]);
+                        
+                        // FIX LỖI REDEFINED VIEWBOX
+                        svgContent = svgContent.replace(/<svg([^>]*)>/, function(match, attrs) {
+                            let newAttrs = attrs.replace(/width="[^"]*"/g, '')
+                                                .replace(/height="[^"]*"/g, '')
+                                                .replace(/viewBox="[^"]*"/g, '');
+                            return `<svg${newAttrs} width="85.6mm" height="53.98mm" viewBox="0 0 1011 638">`;
+                        });
+                        
+                        let finalDataUrl = parts[0] + ',' + encodeURIComponent(svgContent);
+                        downloadURI(finalDataUrl, `the-${item.suffix}.svg`);
+                    } 
+                    else if (format === 'png') {
+                        const dataUrl = await htmlToImage.toPng(item.el, {
+                            ...exportOptions,
+                            pixelRatio: scale4k
+                        });
+                        downloadURI(dataUrl, `the-${item.suffix}-4k.png`);
+                    } 
+                    else if (format === 'pdf') {
+                        const { jsPDF } = window.jspdf;
+                        const pdf = new jsPDF({
+                            orientation: 'landscape',
+                            unit: 'mm',
+                            format: [85.60, 53.98]
+                        });
+                        
+                        const dataUrl = await htmlToImage.toPng(item.el, {
+                            ...exportOptions,
+                            pixelRatio: 4 
+                        });
+                        
+                        pdf.addImage(dataUrl, 'PNG', 0, 0, 85.60, 53.98);
+                        pdf.save(`the-${item.suffix}.pdf`);
+                    }
+                } catch (err) {
+                    console.error("Lỗi khi xuất file:", err);
+                }
+            }
+        }
+        async function update() {
+            const color = c_color_picker.value;
+            const lastname = c_lastname.value.toUpperCase();
+            const name = c_name.value.toUpperCase();
+            const birthdate = `${c_birthdate.value.split("-")[2]}/${c_birthdate.value.split("-")[1]}/${c_birthdate.value.split("-")[0]}`;
+            const nationalid = c_nationalid.value.slice(0, 13);
+            const phone = '+84 ' + c_phone.value.slice(1).slice(0, 9);
+            const position = c_position.value;
+            const classs = c_class.value;
+            const schoolyear = c_schoolyear.value.slice(0,9);
+            const dehid = c_hid.value.replace(/\D/g, "").slice(0,17).replace(/^(\d)(\d{0,4})(\d{0,4})(\d{0,4})(\d{0,4}).*/, (_,a,b,c,d,e) => [a,b,c,d,e].filter(Boolean).join("-"));
+            const desid = c_sid.value.replace(/[^a-fA-F0-9]/g, "").slice(0,16).replace(/(.{4})/g, "$1-").replace(/-$/, "").toUpperCase();
+            const key = c_per_key.value > 6 ? 6 : c_per_key.value;
+            const range = c_per_range.value > 6 ? 6 : c_per_range.value;
+            const gear = c_per_gear.value > 6 ? 6 : c_per_gear.value;
+            const string_identifier = `ANSI-NBAS (2.7-A.F) ${dehid} -- ${desid}`;
+            const validfrom = `${c_validfrom.value.split("-")[1]}/${c_validfrom.value.split("-")[0]}`;
+            const validto = `${c_validto.value.split("-")[1]}/${c_validto.value.split("-")[0]}`;
+
+
+            c_card_color.forEach(el => {el.style.backgroundColor = color;});
+            c_card_color_2.forEach(el => {el.style.backgroundColor = getContrastColor(color)});
+            c_card_text_color_1.forEach(el => {el.style.color = getContrastColor(color);});
+            c_card_text_color_2.forEach(el => {el.style.color = getContrastColor(color, 0.7);});
+            c_card_border_color_1.forEach(el => {el.style.borderColor = getContrastColor(color, 0.7);})
+            c_lastname_place.forEach(el => {el.textContent = lastname});
+            c_name_place.forEach(el => {el.textContent = name});
+            c_birthdate_plate.textContent = birthdate;
+            c_nationalid_plate.textContent = nationalid;
+            c_phone_plate.textContent = phone;
+            c_position_plate.textContent = position;
+            c_class_plate.textContent = classs;
+            c_schoolyear_plate.textContent = schoolyear;
+            c_sid_plate.textContent = desid;
+
+            QRCode.toString(`${c_hid.value.toUpperCase()}|${c_sid.value.toUpperCase()}|${lastname.toUpperCase()} ${name.toUpperCase()}|${birthdate}|${c_sex.checked ? "M" : "F"}|${nationalid.toUpperCase()}|0${phone.slice(4)}|${position.toUpperCase()}|${key}${range}${gear}`, {
+                type: "svg",
+                margin: 0.75,
+                color: {
+                    dark: getContrastColor(color),
+                    light: "#0000"
+                }
+                }, function (err, svg) {
+                c_qr.innerHTML = svg
+            })
+            c_qr.style.borderColor = getContrastColor(color);
+            c_per.innerHTML = generatePermissionSvg(key, range, gear, '#000000');
+            c_hid_plate.textContent = c_hid.value.slice(0, 17);
+            c_role_en_plate.textContent = c_role_en.value.toUpperCase();
+            c_role_vn_plate.textContent = (`THẺ TRUY CẬP - ${await translate(c_role_en.value)}`).toUpperCase();
+
+            c_dm.innerHTML = bwipjs.toSVG({
+                bcid: 'datamatrix',
+                text: string_identifier,
+                scale: 1,
+                padding: 0,
+                includetext: false,
+                backgroundcolor: null,
+                barcolor: getContrastColor(color).replace('#','')
+                }, (err, svg) => {
+                if (err) return console.error(err)
+            })
+            c_id_plate.innerText = string_identifier;
+            c_bar.style.fill = getContrastColor(color);
+            c_back_name.textContent = `${lastname} ${name}`;
+            c_validfrom_plate.innerText = validfrom;
+            c_validto_plate.innerText = validto;
+            c_credit_plate.innerText = 
+            `${"FORMAT<VERSION>>EISL<1<3<<STATIC<<<<<;"}\nISS>>${c_validfrom.value.split("-")[1]}<<${c_validfrom.value.split("-")[0].slice(2)}<<<EXP>>${c_validto.value.split("-")[1]}<<${c_validto.value.split("-")[0].slice(2)}<<<<<<${c_validfrom.value.split("-")[0].slice(0, 2) == c_validto.value.split("-")[0].slice(0, 2) ? "<<" : c_validfrom.value.split("-")[0].slice(0, 2)}<<${c_validto.value.split("-")[0].slice(0, 2)};\nHUID<NBAS10>>>${c_hid.value.slice(0, 17)}<<<<<<;\nSUID<NBAS16>>>${c_sid.value.slice(0, 16)}<<<<<<<;\nACCS<NBAS2>>>${table[key]}<${table[range]}<${table[gear]}<<<<;\n${`${lastname}<<${name.replace(" ", "<")}` + "<".repeat(Math.max(0, 36 - `${lastname}<<${name.replace(" ", "<")}`.length))}${c_sex ? "M" : "F"};\nBRT>>${c_birthdate.value.split("-")[2]}<${c_birthdate.value.split("-")[1]}<<${c_birthdate.value.split("-")[0].slice(2)}<<<<<<<<<<<<<<<<<<<<<${c_birthdate.value.split("-")[0].slice(0,2)};\nCLS<${`${c_role_en.value}>>>${classs.replace("A", "<")}` + "<".repeat(Math.max(0, 33-`${c_role_en.value}>>>${classs.replace("A", "<")}`.length))};\nFRTO>>${c_schoolyear.value.slice(0,9).split("-")[0].slice(2)}<<<${c_schoolyear.value.slice(0,9).split("-")[1].slice(2)}<<<<<<<<<<<<<<<<<${c_schoolyear.value.slice(0,9).split("-")[0].slice(0, 2) == c_schoolyear.value.slice(0,9).split("-")[1].slice(0, 2) ? "<<" : c_schoolyear.value.slice(0,9).split("-")[0].slice(0, 2)}<<<${c_schoolyear.value.slice(0,9).split("-")[1].slice(0, 2)};`.toUpperCase();
+        }
+        function downloadURI(uri, name) {
+            const link = document.createElement("a");
+            link.download = name;
+            link.href = uri;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
